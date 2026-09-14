@@ -1,22 +1,25 @@
-import { Schema, model } from 'mongoose';
+import { Schema, Types, model } from 'mongoose';
 
 export interface Activity {
-  username: string;
-  type: string;
-  durationMinutes: number;
-  caloriesBurned: number;
-  activityDate: Date;
+  userId: Types.ObjectId;
+  activityType: 'running' | 'walking' | 'strength';
+  duration: number;
+  distance: number;
+  calories: number;
+  date: Date;
+  createdAt: Date;
 }
 
 const activitySchema = new Schema<Activity>(
   {
-    username: { type: String, required: true },
-    type: { type: String, required: true },
-    durationMinutes: { type: Number, required: true },
-    caloriesBurned: { type: Number, required: true },
-    activityDate: { type: Date, required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    activityType: { type: String, enum: ['running', 'walking', 'strength'], required: true },
+    duration: { type: Number, required: true, min: 0 },
+    distance: { type: Number, required: true, min: 0 },
+    calories: { type: Number, required: true, min: 0 },
+    date: { type: Date, required: true },
   },
-  { timestamps: true },
+  { timestamps: { createdAt: true, updatedAt: false } },
 );
 
 export const ActivityModel = model<Activity>('Activity', activitySchema);

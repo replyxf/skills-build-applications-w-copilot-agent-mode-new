@@ -18,38 +18,20 @@ async function seedDatabase() {
     console.log('Connected to octofit_db');
     console.log('Seed the octofit_db database with test data');
 
-    await Promise.all([
-      UserModel.deleteMany({}),
-      TeamModel.deleteMany({}),
-      ActivityModel.deleteMany({}),
-      LeaderboardModel.deleteMany({}),
-      WorkoutModel.deleteMany({}),
-    ]);
+    await mongoose.connection.dropDatabase();
 
-    await UserModel.insertMany([
+    const [mona, hubot, octavia] = await UserModel.insertMany([
       {
-        username: 'mona_moves',
+        name: 'Mona Lovewalk',
         email: 'mona.moves@example.com',
-        firstName: 'Mona',
-        lastName: 'Lovewalk',
-        age: 31,
-        fitnessGoal: 'Build endurance for trail running',
       },
       {
-        username: 'hubot_hustle',
+        name: 'Hugo Botman',
         email: 'hubot.hustle@example.com',
-        firstName: 'Hugo',
-        lastName: 'Botman',
-        age: 27,
-        fitnessGoal: 'Improve strength and mobility',
       },
       {
-        username: 'octo_lift',
+        name: 'Octavia Strong',
         email: 'octo.lift@example.com',
-        firstName: 'Octavia',
-        lastName: 'Strong',
-        age: 35,
-        fitnessGoal: 'Increase weekly active minutes',
       },
     ]);
 
@@ -70,25 +52,28 @@ async function seedDatabase() {
 
     await ActivityModel.insertMany([
       {
-        username: 'mona_moves',
-        type: 'Trail Run',
-        durationMinutes: 48,
-        caloriesBurned: 510,
-        activityDate: new Date('2026-09-10T14:30:00Z'),
+        userId: mona._id,
+        activityType: 'running',
+        duration: 48,
+        distance: 6.4,
+        calories: 510,
+        date: new Date('2026-09-10T14:30:00Z'),
       },
       {
-        username: 'hubot_hustle',
-        type: 'Strength Circuit',
-        durationMinutes: 42,
-        caloriesBurned: 380,
-        activityDate: new Date('2026-09-11T12:00:00Z'),
+        userId: hubot._id,
+        activityType: 'strength',
+        duration: 42,
+        distance: 0,
+        calories: 380,
+        date: new Date('2026-09-11T12:00:00Z'),
       },
       {
-        username: 'octo_lift',
-        type: 'Indoor Cycling',
-        durationMinutes: 55,
-        caloriesBurned: 620,
-        activityDate: new Date('2026-09-12T16:15:00Z'),
+        userId: octavia._id,
+        activityType: 'walking',
+        duration: 55,
+        distance: 4.8,
+        calories: 260,
+        date: new Date('2026-09-12T16:15:00Z'),
       },
     ]);
 

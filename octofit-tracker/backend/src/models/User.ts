@@ -1,22 +1,16 @@
 import { Schema, model } from 'mongoose';
 
 export interface User {
-  username: string;
+  name: string;
   email: string;
-  firstName: string;
-  lastName: string;
-  age: number;
-  fitnessGoal: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const userSchema = new Schema<User>(
   {
-    username: { type: String, required: true, unique: true },
+    name: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true },
-    firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
-    age: { type: Number, required: true },
-    fitnessGoal: { type: String, required: true },
   },
   { timestamps: true },
 );
