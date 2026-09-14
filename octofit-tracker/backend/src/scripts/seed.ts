@@ -38,15 +38,13 @@ async function seedDatabase() {
     await TeamModel.insertMany([
       {
         name: 'Trail Blazers',
-        mascot: 'Lightning Shoe',
-        memberUsernames: ['mona_moves', 'octo_lift'],
-        weeklyGoalMinutes: 420,
+        description: 'Outdoor cardio fans building endurance together.',
+        members: [mona._id, octavia._id],
       },
       {
         name: 'Core Crushers',
-        mascot: 'Kettlebell',
-        memberUsernames: ['hubot_hustle'],
-        weeklyGoalMinutes: 300,
+        description: 'Strength and mobility sessions with steady weekly progress.',
+        members: [hubot._id],
       },
     ]);
 
@@ -79,25 +77,28 @@ async function seedDatabase() {
 
     await LeaderboardModel.insertMany([
       {
-        username: 'octo_lift',
-        teamName: 'Trail Blazers',
-        totalMinutes: 235,
-        totalCalories: 2140,
+        userId: hubot._id,
+        points: LeaderboardModel.calculatePoints({ activityType: 'strength', distance: 0 }),
+        totalDistance: 0,
+        totalDuration: 42,
         rank: 1,
+        lastUpdated: new Date(),
       },
       {
-        username: 'mona_moves',
-        teamName: 'Trail Blazers',
-        totalMinutes: 210,
-        totalCalories: 1985,
+        userId: mona._id,
+        points: LeaderboardModel.calculatePoints({ activityType: 'running', distance: 6.4 }),
+        totalDistance: 6.4,
+        totalDuration: 48,
         rank: 2,
+        lastUpdated: new Date(),
       },
       {
-        username: 'hubot_hustle',
-        teamName: 'Core Crushers',
-        totalMinutes: 185,
-        totalCalories: 1620,
+        userId: octavia._id,
+        points: LeaderboardModel.calculatePoints({ activityType: 'walking', distance: 4.8 }),
+        totalDistance: 4.8,
+        totalDuration: 55,
         rank: 3,
+        lastUpdated: new Date(),
       },
     ]);
 

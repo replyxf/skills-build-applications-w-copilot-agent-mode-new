@@ -1,18 +1,18 @@
-import { Schema, model } from 'mongoose';
+import { Schema, Types, model } from 'mongoose';
 
 export interface Team {
   name: string;
-  mascot: string;
-  memberUsernames: string[];
-  weeklyGoalMinutes: number;
+  description: string;
+  members: Types.ObjectId[];
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const teamSchema = new Schema<Team>(
   {
     name: { type: String, required: true, unique: true },
-    mascot: { type: String, required: true },
-    memberUsernames: [{ type: String, required: true }],
-    weeklyGoalMinutes: { type: Number, required: true },
+    description: { type: String, required: true },
+    members: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true },
 );
