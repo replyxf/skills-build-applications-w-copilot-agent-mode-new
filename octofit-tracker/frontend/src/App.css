@@ -84,10 +84,27 @@
   text-align: left;
 }
 
+.user-switcher {
+  max-width: 210px;
+}
+
+.toast-banner {
+  align-items: center;
+  background: #173d2d;
+  border-radius: 8px;
+  box-shadow: var(--soft-shadow);
+  color: #f8fff8;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 12px 14px;
+}
+
 .dashboard-grid,
 .content-grid,
 .leaderboard-grid,
-.team-grid {
+.team-grid,
+.dashboard-stack {
   display: grid;
   gap: 20px;
 }
@@ -213,19 +230,68 @@ label {
 
 .activity-list,
 .rank-list,
-.team-list {
+.team-list,
+.badge-grid,
+.challenge-list,
+.notification-list {
   display: grid;
   gap: 12px;
 }
 
 .activity-item,
 .rank-row,
-.team-card {
+.team-card,
+.badge-card,
+.challenge-card,
+.notification-item {
   border: 1px solid var(--line);
   border-radius: 8px;
   display: grid;
   gap: 12px;
   padding: 14px;
+}
+
+.badge-card {
+  grid-template-columns: auto 1fr;
+  opacity: 0.62;
+}
+
+.badge-card.earned {
+  background: #fff8e8;
+  border-color: #f0b35b;
+  opacity: 1;
+}
+
+.badge-icon {
+  align-items: center;
+  background: var(--leaf-soft);
+  border-radius: 8px;
+  color: var(--ink);
+  display: flex;
+  font-weight: 900;
+  height: 42px;
+  justify-content: center;
+  text-transform: uppercase;
+  width: 42px;
+}
+
+.badge-card p,
+.challenge-card p,
+.notification-item p {
+  margin: 0;
+}
+
+.challenge-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.notification-item strong {
+  color: var(--ink);
+  text-transform: capitalize;
 }
 
 .activity-item > div,

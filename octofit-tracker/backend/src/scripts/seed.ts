@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
 
 import { ActivityModel } from '../models/Activity.js';
+import { ChallengeModel } from '../models/Challenge.js';
 import { LeaderboardModel } from '../models/Leaderboard.js';
+import { NotificationModel } from '../models/Notification.js';
 import { TeamModel } from '../models/Team.js';
 import { UserModel } from '../models/User.js';
 import { WorkoutModel } from '../models/Workout.js';
+import { calculateBadgeEligibilityAfterActivities, ensureDefaultBadges } from '../services/gamification.js';
+import { recalculateLeaderboardStandings } from '../services/leaderboard.js';
 
 const connectionString = process.env.MONGODB_URI || 'mongodb://localhost:27017/octofit_db';
 
@@ -19,6 +23,7 @@ async function seedDatabase() {
     console.log('Seed the octofit_db database with test data');
 
     await mongoose.connection.dropDatabase();
+    await ensureDefaultBadges();
 
     const [mona, hubot, octavia] = await UserModel.insertMany([
       {
@@ -75,32 +80,33 @@ async function seedDatabase() {
       },
     ]);
 
-    await LeaderboardModel.insertMany([
+    await recalculateLeaderboardStandings();
+    await Promise.all([mona._id, hubot._id, octavia._id].map((userId) => calculateBadgeEligibilityAfterActivities(userId)));
+
+    await ChallengeModel.insertMany([
       {
-        userId: hubot._id,
-        points: LeaderboardModel.calculatePoints({ activityType: 'strength', distance: 0 }),
-        totalDistance: 0,
-        totalDuration: 42,
-        rank: 1,
-        lastUpdated: new Date(),
+        name: 'September Distance Dash',
+        description: 'Log 25 km of running or walking this month.',
+        goal: 25,
+        duration: 30,
+        rewardPoints: 50,
+        active: true,
       },
       {
-        userId: mona._id,
-        points: LeaderboardModel.calculatePoints({ activityType: 'running', distance: 6.4 }),
-        totalDistance: 6.4,
-        totalDuration: 48,
-        rank: 2,
-        lastUpdated: new Date(),
-      },
-      {
-        userId: octavia._id,
-        points: LeaderboardModel.calculatePoints({ activityType: 'walking', distance: 4.8 }),
-        totalDistance: 4.8,
-        totalDuration: 55,
-        rank: 3,
-        lastUpdated: new Date(),
+        name: 'Strength Starter',
+        description: 'Complete five strength workouts.',
+        goal: 5,
+        duration: 14,
+        rewardPoints: 35,
+        active: true,
       },
     ]);
+
+    await NotificationModel.create({
+      userId: mona._id,
+      type: 'activity',
+      message: 'Welcome to OctoFit Tracker. Your first activities are ready.',
+    });
 
     await WorkoutModel.insertMany([
       {

@@ -2,10 +2,19 @@ import { Router } from 'express';
 import { isValidObjectId } from 'mongoose';
 
 import { ActivityModel } from '../models/Activity.js';
+import { ChallengeModel } from '../models/Challenge.js';
 import { LeaderboardModel } from '../models/Leaderboard.js';
+import { NotificationModel } from '../models/Notification.js';
 import { TeamModel } from '../models/Team.js';
 import { UserModel } from '../models/User.js';
+import { UserChallengeModel } from '../models/UserChallenge.js';
 import { WorkoutModel } from '../models/Workout.js';
+import {
+  awardTeamPlayerBadge,
+  calculateBadgeEligibilityAfterActivities,
+  getUserBadges,
+  updateChallengeProgress,
+} from '../services/gamification.js';
 import { getTeamLeaderboard, recalculateLeaderboardStandings } from '../services/leaderboard.js';
 
 const router = Router();
@@ -96,7 +105,9 @@ router.post('/api/teams/:id/members', async (request, response, next) => {
       return;
     }
 
-    const user = await UserModel.findById(userId).lean();
+    const memberUserId = userId as string;
+
+    const user = await UserModel.findById(memberUserId).lean();
 
     if (!user) {
       response.status(404).json({ message: 'User not found' });
@@ -105,7 +116,7 @@ router.post('/api/teams/:id/members', async (request, response, next) => {
 
     const team = await TeamModel.findByIdAndUpdate(
       request.params.id,
-      { $addToSet: { members: userId } },
+      { $addToSet: { members: memberUserId } },
       { returnDocument: 'after' },
     )
       .populate('members', 'name email')
@@ -116,7 +127,9 @@ router.post('/api/teams/:id/members', async (request, response, next) => {
       return;
     }
 
-    response.json(team);
+    const badges = await awardTeamPlayerBadge(memberUserId);
+
+    response.json({ ...team, badges });
   } catch (error) {
     next(error);
   }
@@ -135,7 +148,8 @@ router.post('/api/activities', async (request, response, next) => {
   try {
     const activity = await ActivityModel.create(request.body);
     await recalculateLeaderboardStandings();
-    response.status(201).json(activity);
+    const badges = await calculateBadgeEligibilityAfterActivities(activity.userId);
+    response.status(201).json({ activity, badges });
   } catch (error) {
     next(error);
   }
@@ -199,6 +213,87 @@ router.get('/api/leaderboard/:userId', async (request, response, next) => {
     }
 
     response.json(entry);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/api/badges/:userId', async (request, response, next) => {
+  try {
+    if (!isValidObjectId(request.params.userId)) {
+      response.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const badges = await getUserBadges(request.params.userId);
+    response.json(badges);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/api/challenges', async (request, response, next) => {
+  try {
+    const challenges = await ChallengeModel.find({ active: true }).sort({ rewardPoints: -1 }).lean();
+    const userId = typeof request.query.userId === 'string' ? request.query.userId : '';
+
+    if (!isValidObjectId(userId)) {
+      response.json(challenges);
+      return;
+    }
+
+    const userChallenges = await UserChallengeModel.find({ userId }).lean();
+    const progressByChallenge = new Map(userChallenges.map((entry) => [entry.challengeId.toString(), entry]));
+
+    response.json(
+      challenges.map((challenge) => {
+        const progress = progressByChallenge.get(challenge._id.toString());
+
+        return {
+          ...challenge,
+          userProgress: progress?.progress ?? 0,
+          completed: progress?.completed ?? false,
+        };
+      }),
+    );
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/api/challenges/:id/progress', async (request, response, next) => {
+  try {
+    const { userId, progress } = request.body as { userId?: string; progress?: number };
+
+    if (!isValidObjectId(request.params.id) || !isValidObjectId(userId)) {
+      response.status(400).json({ message: 'Valid challenge ID and userId are required' });
+      return;
+    }
+
+    const userChallenge = await updateChallengeProgress(request.params.id, userId as string, progress ?? 1);
+
+    if (!userChallenge) {
+      response.status(404).json({ message: 'Active challenge not found' });
+      return;
+    }
+
+    response.json(userChallenge);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/api/notifications/:userId', async (request, response, next) => {
+  try {
+    if (!isValidObjectId(request.params.userId)) {
+      response.status(400).json({ message: 'Invalid user ID' });
+      return;
+    }
+
+    const notifications = await NotificationModel.find({ userId: request.params.userId })
+      .sort({ createdAt: -1 })
+      .lean();
+    response.json(notifications);
   } catch (error) {
     next(error);
   }
