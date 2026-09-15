@@ -1,4 +1,5 @@
-import { Router } from 'express';
+import { NextFunction, Request, RequestHandler, Response, Router } from 'express';
+import { body, param, query, validationResult } from 'express-validator';
 import { isValidObjectId } from 'mongoose';
 
 import { ActivityModel } from '../models/Activity.js';
@@ -19,6 +20,19 @@ import { getTeamLeaderboard, recalculateLeaderboardStandings } from '../services
 
 const router = Router();
 
+const rejectInvalidRequest: RequestHandler = (request, response, next) => {
+  const errors = validationResult(request);
+
+  if (!errors.isEmpty()) {
+    response.status(400).json({ message: 'Invalid request', errors: errors.array() });
+    return;
+  }
+
+  next();
+};
+
+const objectId = (field: string) => body(field).isMongoId().withMessage(`${field} must be a valid ID`);
+
 router.get('/api/users', async (_request, response, next) => {
   try {
     const users = await UserModel.find().sort({ name: 1 }).lean();
@@ -28,14 +42,23 @@ router.get('/api/users', async (_request, response, next) => {
   }
 });
 
-router.post('/api/users', async (request, response, next) => {
+router.post(
+  '/api/users',
+  [
+    body('name').trim().notEmpty().isLength({ max: 100 }).escape(),
+    body('email').trim().isEmail().normalizeEmail(),
+    body().custom((value) => Object.keys(value).every((key) => ['name', 'email'].includes(key))),
+  ],
+  rejectInvalidRequest,
+  async (request: Request, response: Response, next: NextFunction) => {
   try {
     const user = await UserModel.create(request.body);
     response.status(201).json(user);
   } catch (error) {
     next(error);
   }
-});
+  },
+);
 
 router.get('/api/users/:id', async (request, response, next) => {
   try {
@@ -66,7 +89,16 @@ router.get('/api/teams/', async (_request, response, next) => {
   }
 });
 
-router.post('/api/teams', async (request, response, next) => {
+router.post(
+  '/api/teams',
+  [
+    body('name').trim().notEmpty().isLength({ max: 100 }).escape(),
+    body('description').trim().notEmpty().isLength({ max: 500 }).escape(),
+    body('members').optional().isArray({ max: 100 }),
+    body('members.*').optional().isMongoId(),
+  ],
+  rejectInvalidRequest,
+  async (request: Request, response: Response, next: NextFunction) => {
   try {
     const team = await TeamModel.create(request.body);
     const populatedTeam = await TeamModel.findById(team._id).populate('members', 'name email').lean();
@@ -74,7 +106,8 @@ router.post('/api/teams', async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+  },
+);
 
 router.get('/api/teams/:id', async (request, response, next) => {
   try {
@@ -96,7 +129,11 @@ router.get('/api/teams/:id', async (request, response, next) => {
   }
 });
 
-router.post('/api/teams/:id/members', async (request, response, next) => {
+router.post(
+  '/api/teams/:id/members',
+  [param('id').isMongoId(), objectId('userId')],
+  rejectInvalidRequest,
+  async (request: Request, response: Response, next: NextFunction) => {
   try {
     const { userId } = request.body as { userId?: string };
 
@@ -133,7 +170,8 @@ router.post('/api/teams/:id/members', async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+  },
+);
 
 router.get('/api/activities', async (_request, response, next) => {
   try {
@@ -144,7 +182,18 @@ router.get('/api/activities', async (_request, response, next) => {
   }
 });
 
-router.post('/api/activities', async (request, response, next) => {
+router.post(
+  '/api/activities',
+  [
+    objectId('userId'),
+    body('activityType').isIn(['running', 'walking', 'strength']),
+    body('duration').isFloat({ min: 0 }).toFloat(),
+    body('distance').isFloat({ min: 0 }).toFloat(),
+    body('calories').isFloat({ min: 0 }).toFloat(),
+    body('date').isISO8601().toDate(),
+  ],
+  rejectInvalidRequest,
+  async (request: Request, response: Response, next: NextFunction) => {
   try {
     const activity = await ActivityModel.create(request.body);
     await recalculateLeaderboardStandings();
@@ -153,7 +202,8 @@ router.post('/api/activities', async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+  },
+);
 
 router.get('/api/activities/:id', async (request, response, next) => {
   try {
@@ -232,10 +282,10 @@ router.get('/api/badges/:userId', async (request, response, next) => {
   }
 });
 
-router.get('/api/challenges', async (request, response, next) => {
+router.get('/api/challenges', query('userId').optional().isMongoId(), rejectInvalidRequest, async (request, response, next) => {
   try {
     const challenges = await ChallengeModel.find({ active: true }).sort({ rewardPoints: -1 }).lean();
-    const userId = typeof request.query.userId === 'string' ? request.query.userId : '';
+    const userId = typeof request.query?.userId === 'string' ? request.query.userId : '';
 
     if (!isValidObjectId(userId)) {
       response.json(challenges);
@@ -261,7 +311,11 @@ router.get('/api/challenges', async (request, response, next) => {
   }
 });
 
-router.post('/api/challenges/:id/progress', async (request, response, next) => {
+router.post(
+  '/api/challenges/:id/progress',
+  [param('id').isMongoId(), objectId('userId'), body('progress').optional().isInt({ min: 1 }).toInt()],
+  rejectInvalidRequest,
+  async (request: Request, response: Response, next: NextFunction) => {
   try {
     const { userId, progress } = request.body as { userId?: string; progress?: number };
 
@@ -270,7 +324,7 @@ router.post('/api/challenges/:id/progress', async (request, response, next) => {
       return;
     }
 
-    const userChallenge = await updateChallengeProgress(request.params.id, userId as string, progress ?? 1);
+    const userChallenge = await updateChallengeProgress(request.params.id as string, userId as string, progress ?? 1);
 
     if (!userChallenge) {
       response.status(404).json({ message: 'Active challenge not found' });
@@ -281,7 +335,8 @@ router.post('/api/challenges/:id/progress', async (request, response, next) => {
   } catch (error) {
     next(error);
   }
-});
+  },
+);
 
 router.get('/api/notifications/:userId', async (request, response, next) => {
   try {
